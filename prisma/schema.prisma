@@ -1,0 +1,117 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ==========================================
+// 📦 DATABASE SCHEMA - Scholarship Matcher
+// ==========================================
+
+// 1️⃣ Users Table - Store student profiles
+model User {
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  password  String   // Hashed password
+  phone     String?
+  class     String?  // e.g., "12"
+  percentage Float?
+  income    Int?     // Annual family income
+  category  String?  // OBC, SC, ST, General
+  state     String?
+  schoolType String? // Govt, Private, Govt Aided
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  applications Application[]
+  documents    Document[]
+}
+
+// 2️⃣ Scholarships Table - Store scholarship details
+model Scholarship {
+  id          String   @id @default(cuid())
+  name        String
+  amount      Int      // Scholarship amount in INR
+  description String?
+  eligibility String?  // Eligibility criteria text
+  deadline    DateTime
+  tags        String[] // ["Merit Based", "Rural", "Science"]
+  
+  // Eligibility criteria fields
+  minPercentage  Float?
+  maxIncome      Int?
+  categories     String[] // Eligible categories
+  states         String[] // Eligible states
+  schoolTypes    String[] // Eligible school types
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  applications Application[]
+}
+
+// 3️⃣ Applications Table - Track application status
+model Application {
+  id            String   @id @default(cuid())
+  userId        String
+  scholarshipId String
+  status        ApplicationStatus @default(PENDING)
+  matchScore    Int?     // AI-calculated match percentage
+  submittedAt   DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relations
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  scholarship Scholarship @relation(fields: [scholarshipId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, scholarshipId]) // One application per user per scholarship
+}
+
+// 4️⃣ Documents Table - Store uploaded files metadata
+model Document {
+  id        String       @id @default(cuid())
+  userId    String
+  type      DocumentType
+  fileName  String
+  fileUrl   String       // S3/Cloudinary URL
+  fileSize  Int?         // Size in bytes
+  mimeType  String?
+  
+  // OCR extracted data (JSON)
+  extractedData Json?
+  
+  uploadedAt DateTime @default(now())
+  
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ==========================================
+// 📌 ENUMS
+// ==========================================
+
+enum ApplicationStatus {
+  PENDING
+  SUBMITTED
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
+}
+
+enum DocumentType {
+  MARKSHEET
+  INCOME_CERTIFICATE
+  CASTE_CERTIFICATE
+  DOMICILE
+  AADHAAR
+  OTHER
+}
