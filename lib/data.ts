@@ -1,0 +1,118 @@
+export const dummyData = {
+  user: {
+    name: "Arjun Kumar",
+    class: "12",
+    percentage: 87,
+    income: 150000,
+    documents: ["Marksheet.pdf", "Income_Certificate.pdf"],
+  },
+  stats: {
+    matchScore: 87,
+    eligibleScholarships: 5,
+    documentsUploaded: 2,
+  },
+  upcomingDeadlines: [
+    {
+      id: 1,
+      name: "VidyaSamarth Scholarship",
+      deadline: "March 10, 2025",
+      daysLeft: 12,
+    },
+    {
+      id: 2,
+      name: "Tata Udaan Grant",
+      deadline: "March 18, 2025",
+      daysLeft: 20,
+    },
+    {
+      id: 3,
+      name: "Digital India Girl Child Support",
+      deadline: "March 30, 2025",
+      daysLeft: 32,
+    },
+  ],
+  ocrExtracted: {
+    name: "Arjun Kumar",
+    class: "12",
+    subjects: [
+      { name: "Math", marks: 88 },
+      { name: "Physics", marks: 91 },
+      { name: "Chemistry", marks: 84 },
+      { name: "English", marks: 78 },
+      { name: "Computer Science", marks: 94 },
+    ],
+    percentage: 87.0,
+    schoolType: "Govt Aided",
+    category: "OBC",
+    income: "1.5 LPA",
+  },
+  scholarships: [
+    {
+      id: 1,
+      name: "VidyaSamarth National Merit Scholarship",
+      match: 92,
+      amount: 25000,
+      reason: "Strong STEM marks + rural school category",
+      deadline: "March 10, 2025",
+      tags: ["Merit Based", "Rural"],
+    },
+    {
+      id: 2,
+      name: "Tata Udaan Grant",
+      match: 86,
+      amount: 18000,
+      reason: "Income criteria + govt school background",
+      deadline: "March 18, 2025",
+      tags: ["Need Based", "Govt School"],
+    },
+    {
+      id: 3,
+      name: "Inspire Young Achievers Program",
+      match: 78,
+      amount: 30000,
+      reason: "High science stream marks",
+      deadline: "April 15, 2025",
+      tags: ["Science", "Merit"],
+    },
+    {
+      id: 4,
+      name: "HDFC Badhte Kadam",
+      match: 72,
+      amount: 15000,
+      reason: "General category support",
+      deadline: "May 01, 2025",
+      tags: ["General", "Need Based"],
+    },
+    {
+      id: 5,
+      name: "Keep India Smiling Foundation",
+      match: 65,
+      amount: 20000,
+      reason: "Dental/Medical aspirations",
+      deadline: "May 20, 2025",
+      tags: ["Medical", "Merit"],
+    },
+  ],
+}
+
+export const adminData = {
+  metrics: {
+    totalApplications: 1240,
+    scholarshipsDisbursed: "₹4.5 Cr",
+    activeStudents: 850,
+  },
+  applicationsOverTime: [
+    { month: "Jan", applications: 65 },
+    { month: "Feb", applications: 85 },
+    { month: "Mar", applications: 120 },
+    { month: "Apr", applications: 90 },
+    { month: "May", applications: 140 },
+    { month: "Jun", applications: 180 },
+  ],
+  scholarshipDistribution: [
+    { name: "Merit", value: 45, color: "#2563eb" },
+    { name: "Need Based", value: 30, color: "#16a34a" },
+    { name: "Sports", value: 15, color: "#ea580c" },
+    { name: "Arts", value: 10, color: "#9333ea" },
+  ],
+}
