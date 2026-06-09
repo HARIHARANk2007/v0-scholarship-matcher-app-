@@ -1,8 +1,13 @@
+"use client"
+
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { GraduationCap } from "lucide-react"
+import { useSession } from "next-auth/react"
 
 export function Navbar() {
+  const { data: session } = useSession()
+
   return (
     <header className="sticky top-0 z-50 w-full border-b border-slate-200 bg-white/80 backdrop-blur-md">
       <div className="container mx-auto flex h-16 items-center justify-between px-6">
@@ -31,9 +36,15 @@ export function Navbar() {
         </nav>
 
         <div className="flex items-center gap-4">
-          <Link href="/dashboard">
-            <Button className="bg-blue-600 hover:bg-blue-700 text-white rounded-lg px-6">Login</Button>
-          </Link>
+          {session ? (
+            <Link href="/dashboard">
+              <Button className="bg-blue-600 hover:bg-blue-700 text-white rounded-lg px-6">Dashboard</Button>
+            </Link>
+          ) : (
+            <Link href="/login">
+              <Button className="bg-blue-600 hover:bg-blue-700 text-white rounded-lg px-6">Login</Button>
+            </Link>
+          )}
         </div>
       </div>
     </header>
