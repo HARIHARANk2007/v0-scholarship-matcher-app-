@@ -38,7 +38,7 @@ if (hasDbUrl) {
       id: "demo-user-id",
       name: "Arjun Kumar",
       email: "arjun.kumar@example.com",
-      password: "", // In-memory fallback
+      password: "$2b$10$q4PA0FsH0J9NGJGdGa0sCuVC5kHB0YfsbiD6IpibX1DcrG7oeOdhe", // bcrypt hash for 'password123'
       phone: "9876543210",
       class: "12",
       percentage: 87.0,
