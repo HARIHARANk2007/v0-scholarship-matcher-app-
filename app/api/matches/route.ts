@@ -68,95 +68,95 @@ export async function POST(req: Request) {
     }
 
     // 2. Score each matching scholarship by the number of criteria they meet
-    const scoredMatches = scholarships.map((s: any) => {
-      let criteriaCount = 0
-      let metCount = 0
+    const scoredMatches = await Promise.all(
+      scholarships.map(async (s: any) => {
+        let criteriaCount = 0
+        let metCount = 0
 
-      // Criteria 1: Minimum Marks Percentage
-      if (s.minPercentage !== null) {
-        criteriaCount++
-        if (userPct >= s.minPercentage) {
-          metCount++
+        // Criteria 1: Minimum Marks Percentage
+        if (s.minPercentage !== null) {
+          criteriaCount++
+          if (userPct >= s.minPercentage) {
+            metCount++
+          }
         }
-      }
 
-      // Criteria 2: Maximum Family Income
-      if (s.maxIncome !== null) {
-        criteriaCount++
-        if (userInc <= s.maxIncome) {
-          metCount++
+        // Criteria 2: Maximum Family Income
+        if (s.maxIncome !== null) {
+          criteriaCount++
+          if (userInc <= s.maxIncome) {
+            metCount++
+          }
         }
-      }
 
-      // Criteria 3: Social Category Match
-      if (s.categories && s.categories.length > 0) {
-        criteriaCount++
-        if (s.categories.includes(category)) {
-          metCount++
+        // Criteria 3: Social Category Match
+        if (s.categories && s.categories.length > 0) {
+          criteriaCount++
+          if (s.categories.includes(category)) {
+            metCount++
+          }
         }
-      }
 
-      // Criteria 4: State Domicile Match
-      if (s.states && s.states.length > 0) {
-        criteriaCount++
-        if (s.states.includes(state)) {
-          metCount++
+        // Criteria 4: State Domicile Match
+        if (s.states && s.states.length > 0) {
+          criteriaCount++
+          if (s.states.includes(state)) {
+            metCount++
+          }
         }
-      }
 
-      // Criteria 5: School Type Match
-      if (s.schoolTypes && s.schoolTypes.length > 0) {
-        criteriaCount++
-        if (s.schoolTypes.includes(schoolType)) {
-          metCount++
+        // Criteria 5: School Type Match
+        if (s.schoolTypes && s.schoolTypes.length > 0) {
+          criteriaCount++
+          if (s.schoolTypes.includes(schoolType)) {
+            metCount++
+          }
         }
-      }
 
-      // If a scholarship has no specific criteria (open to all), default base criteria count to 1
-      const totalCriteria = criteriaCount || 1
-      const matchedCriteria = metCount || 1
+        // If a scholarship has no specific criteria (open to all), default base criteria count to 1
+        const totalCriteria = criteriaCount || 1
+        const matchedCriteria = metCount || 1
 
-      // Calculate base match score from 0-100% based on matching criteria
-      let matchPercent = Math.round((matchedCriteria / totalCriteria) * 85)
+        // Calculate base match score from 0-100% based on matching criteria
+        let matchPercent = Math.round((matchedCriteria / totalCriteria) * 85)
 
-      // Add a bonus based on how much the student exceeds the academic requirements
-      if (s.minPercentage !== null && userPct > s.minPercentage) {
-        const excess = userPct - s.minPercentage
-        matchPercent += Math.min(10, Math.round(excess * 0.8))
-      }
+        // Add a bonus based on how much the student exceeds the academic requirements
+        if (s.minPercentage !== null && userPct > s.minPercentage) {
+          const excess = userPct - s.minPercentage
+          matchPercent += Math.min(10, Math.round(excess * 0.8))
+        }
 
-      // Add a bonus if the student's family income is significantly lower than the maximum limit
-      if (s.maxIncome !== null && userInc < s.maxIncome * 0.5) {
-        matchPercent += 5
-      }
+        // Add a bonus if the student's family income is significantly lower than the maximum limit
+        if (s.maxIncome !== null && userInc < s.maxIncome * 0.5) {
+          matchPercent += 5
+        }
 
-      const finalScore = Math.min(98, Math.max(60, matchPercent))
+        const finalScore = Math.min(98, Math.max(60, matchPercent))
 
-      // Generate explanation reasons based on criteria met
-      let reason = `Matches your marks (${userPct}%) and annual family income (₹${userInc.toLocaleString()}/yr).`
-      if (s.schoolTypes && s.schoolTypes.includes(schoolType)) {
-        reason = `Highly optimized for your ${schoolType} school background and percentage.`
-      } else if (userPct >= 90) {
-        reason = `Outstanding academic score (${userPct}%) gives you a high-probability merit match.`
-      }
+        // Get AI Explanation (either Claude API or local EWS/Merit fallback)
+        const reason = await getAIExplanation(
+          { name: body.name || "Guest User", percentage: userPct, income: userInc, category, state, schoolType },
+          { name: s.name, minPercentage: s.minPercentage, maxIncome: s.maxIncome, categories: s.categories, states: s.states, schoolTypes: s.schoolTypes }
+        )
 
-      // Format date for response
-      const deadlineStr = s.deadline instanceof Date 
-        ? s.deadline.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })
-        : new Date(s.deadline).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })
+        // Format date for response
+        const deadlineStr = s.deadline instanceof Date 
+          ? s.deadline.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })
+          : new Date(s.deadline).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })
 
-      return {
-        id: s.id,
-        name: s.name,
-        amount: s.amount,
-        deadline: deadlineStr,
-        tags: s.tags,
-        match: finalScore,
-        reason,
-        matchedCriteria,
-        totalCriteria
-      }
-    })
+        return {
+          id: s.id,
+          name: s.name,
+          amount: s.amount,
+          deadline: deadlineStr,
+          tags: s.tags,
+          match: finalScore,
+          reason,
+          matchedCriteria,
+          totalCriteria
+        }
+      })
+    )
 
     // 3. Sort by match score descending
     scoredMatches.sort((a, b) => b.match - a.match)
