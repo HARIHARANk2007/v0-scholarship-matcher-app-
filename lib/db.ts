@@ -1,27 +1,133 @@
 import { PrismaClient } from "@prisma/client/default"
 import { PrismaPg } from "@prisma/adapter-pg"
 import pg from "pg"
+import { scholarshipsData } from "./scholarships-data"
 
 // ==========================================
 // 🔌 Prisma Client - Database Connection
 // ==========================================
 
-const globalForPrisma = globalThis as unknown as {
-  prisma: PrismaClient | undefined
-  pool: pg.Pool | undefined
+const hasDbUrl = !!process.env.DATABASE_URL;
+
+let dbInstance: any;
+
+if (hasDbUrl) {
+  const globalForPrisma = globalThis as unknown as {
+    prisma: PrismaClient | undefined
+    pool: pg.Pool | undefined
+  }
+
+  const pool = globalForPrisma.pool ?? new pg.Pool({
+    connectionString: process.env.DATABASE_URL,
+  })
+
+  const adapter = new PrismaPg(pool)
+
+  dbInstance = globalForPrisma.prisma ?? new PrismaClient({ adapter })
+
+  if (process.env.NODE_ENV !== "production") {
+    globalForPrisma.prisma = dbInstance
+    globalForPrisma.pool = pool
+  }
+} else {
+  // Fallback in-memory database mock for local development without Postgres
+  console.warn("⚠️ No DATABASE_URL found. Running with in-memory mock database.");
+
+  const inMemoryUsers: any[] = [
+    {
+      id: "demo-user-id",
+      name: "Arjun Kumar",
+      email: "arjun.kumar@example.com",
+      password: "", // In-memory fallback
+      phone: "9876543210",
+      class: "12",
+      percentage: 87.0,
+      income: 150000,
+      category: "OBC",
+      state: "Tamil Nadu",
+      schoolType: "Govt Aided",
+    }
+  ];
+
+  // Map shared scholarships to have s1, s2, etc. string IDs
+  const inMemoryScholarships = scholarshipsData.map((s, index) => ({
+    id: `s${index + 1}`,
+    ...s
+  }));
+
+  const inMemoryApplications: any[] = [];
+  const inMemoryDocuments: any[] = [];
+
+  dbInstance = {
+    user: {
+      findUnique: async (args: any) => {
+        const { email, id } = args.where;
+        return inMemoryUsers.find(u => (email && u.email === email) || (id && u.id === id)) || null;
+      },
+      create: async (args: any) => {
+        const newUser = {
+          id: Math.random().toString(36).substring(7),
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          ...args.data,
+        };
+        inMemoryUsers.push(newUser);
+        return newUser;
+      },
+      update: async (args: any) => {
+        const { id } = args.where;
+        const userIndex = inMemoryUsers.findIndex(u => u.id === id);
+        if (userIndex !== -1) {
+          inMemoryUsers[userIndex] = {
+            ...inMemoryUsers[userIndex],
+            ...args.data,
+            updatedAt: new Date(),
+          };
+          return inMemoryUsers[userIndex];
+        }
+        throw new Error("User not found");
+      }
+    },
+    scholarship: {
+      findMany: async (args: any) => {
+        return inMemoryScholarships;
+      },
+      findUnique: async (args: any) => {
+        return inMemoryScholarships.find(s => s.id === args.where.id) || null;
+      }
+    },
+    application: {
+      findMany: async (args: any) => {
+        const { userId } = args.where || {};
+        if (userId) {
+          return inMemoryApplications.filter(a => a.userId === userId);
+        }
+        return inMemoryApplications;
+      },
+      create: async (args: any) => {
+        const newApp = {
+          id: Math.random().toString(36).substring(7),
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          ...args.data,
+        };
+        inMemoryApplications.push(newApp);
+        return newApp;
+      }
+    },
+    document: {
+      create: async (args: any) => {
+        const newDoc = {
+          id: Math.random().toString(36).substring(7),
+          uploadedAt: new Date(),
+          ...args.data,
+        };
+        inMemoryDocuments.push(newDoc);
+        return newDoc;
+      }
+    }
+  };
 }
 
-const pool = globalForPrisma.pool ?? new pg.Pool({
-  connectionString: process.env.DATABASE_URL,
-})
-
-const adapter = new PrismaPg(pool)
-
-export const db = globalForPrisma.prisma ?? new PrismaClient({ adapter })
-
-if (process.env.NODE_ENV !== "production") {
-  globalForPrisma.prisma = db
-  globalForPrisma.pool = pool
-}
-
-export default db
+export const db = dbInstance;
+export default db;
