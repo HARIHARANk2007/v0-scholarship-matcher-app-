@@ -17,14 +17,24 @@ export interface ScholarshipProfile {
 }
 
 /**
- * Fallback to generate a highly personalized explanation locally when no API key is present.
- * Generates natural sentences like: "You qualify because your 87% exceeds the 75% cutoff and you're from Tamil Nadu."
+ * Server-side in-memory cache so repeated page loads or profile checks
+ * don't re-call the Gemini API and blow through the free-tier RPM quota.
+ * Key format: "<studentKey>|<scholarshipName>"
+ */
+const explanationCache = new Map<string, string>();
+
+function buildCacheKey(student: StudentProfile, scholarship: ScholarshipProfile): string {
+  return `${student.name}|${student.percentage}|${student.income}|${student.category}|${student.state}|${student.schoolType}||${scholarship.name}`;
+}
+
+/**
+ * Fallback – generates a plain-language explanation locally (zero network calls).
+ * Example output: "You qualify because your 87% exceeds the 75% cutoff and you're from Tamil Nadu."
  */
 export function generateLocalExplanation(student: StudentProfile, scholarship: ScholarshipProfile): string {
   const reasons: string[] = [];
 
   if (scholarship.minPercentage !== null) {
-    const diff = student.percentage - scholarship.minPercentage;
     reasons.push(`your ${student.percentage}% exceeds the ${scholarship.minPercentage}% cutoff`);
   }
 
@@ -64,7 +74,9 @@ export function generateLocalExplanation(student: StudentProfile, scholarship: S
 }
 
 /**
- * Call the Gemini API to generate a personalized explanation.
+ * Calls the Gemini API to generate a personalised explanation.
+ * Results are cached in-memory so repeated calls for the same
+ * student+scholarship pair never hit the network more than once.
  */
 export async function getAIExplanation(student: StudentProfile, scholarship: ScholarshipProfile): Promise<string> {
   const apiKey = process.env.GEMINI_API_KEY;
@@ -72,6 +84,12 @@ export async function getAIExplanation(student: StudentProfile, scholarship: Sch
   // Fall back to local explanation if API key is not configured
   if (!apiKey) {
     return generateLocalExplanation(student, scholarship);
+  }
+
+  // --- Cache check ---
+  const cacheKey = buildCacheKey(student, scholarship);
+  if (explanationCache.has(cacheKey)) {
+    return explanationCache.get(cacheKey)!;
   }
 
   try {
@@ -95,7 +113,7 @@ Scholarship:
 
 Start the explanation directly without introductory phrases like "Here is the explanation". Keep it extremely concise and direct, similar to: "You qualify because your 87% exceeds the 75% cutoff and you're from Tamil Nadu."`;
 
-    const modelName = "gemini-1.5-flash";
+    const modelName = "gemini-2.5-flash";
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
 
     const response = await fetch(url, {
@@ -114,19 +132,32 @@ Start the explanation directly without introductory phrases like "Here is the ex
           }
         ],
         generationConfig: {
-          maxOutputTokens: 100,
-          temperature: 0.2
+          maxOutputTokens: 150,
+          temperature: 0.2,
+          thinkingConfig: {
+            thinkingBudget: 0
+          }
         }
       }),
     });
 
     if (!response.ok) {
-      throw new Error(`Gemini API responded with status ${response.status}`);
+      const errorText = await response.text();
+      throw new Error(`Gemini API responded with status ${response.status}: ${errorText}`);
     }
 
     const data = await response.json();
-    if (data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts[0] && data.candidates[0].content.parts[0].text) {
-      return data.candidates[0].content.parts[0].text.trim();
+    if (
+      data.candidates &&
+      data.candidates[0] &&
+      data.candidates[0].content &&
+      data.candidates[0].content.parts[0] &&
+      data.candidates[0].content.parts[0].text
+    ) {
+      const result = data.candidates[0].content.parts[0].text.trim();
+      // Store in cache for future requests
+      explanationCache.set(cacheKey, result);
+      return result;
     }
 
     return generateLocalExplanation(student, scholarship);

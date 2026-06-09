@@ -6,6 +6,11 @@ import { Clock, ArrowRight, Filter, AlertCircle, RefreshCw } from "lucide-react"
 import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/lib/auth"
 import db from "@/lib/db"
+import { getAIExplanation, generateLocalExplanation } from "@/lib/ai-explainer"
+
+// Max number of matches that will get a live Gemini-generated explanation.
+const AI_EXPLAINER_LIMIT = 3
+
 
 interface MatchesPageProps {
   searchParams: Promise<{
@@ -75,109 +80,83 @@ export default async function MatchesPage({ searchParams }: MatchesPageProps) {
   // 2. Fetch scholarships from database
   const dbScholarships = await db.scholarship.findMany()
 
-  // 3. Apply real-time scholarship matching logic
-  const matchedScholarships = dbScholarships.map((s: any) => {
-    let eligible = true
+  // 3. Filter eligible scholarships first (synchronous — no API calls)
+  const eligibleScholarships = dbScholarships.filter((s: any) => {
+    if (s.minPercentage !== null && userProfile.percentage < s.minPercentage) return false
+    if (s.maxIncome !== null && userProfile.income > s.maxIncome) return false
+    if (s.categories && s.categories.length > 0 && !s.categories.includes(userProfile.category)) return false
+    if (s.states && s.states.length > 0 && !s.states.includes(userProfile.state)) return false
+    if (s.schoolTypes && s.schoolTypes.length > 0 && !s.schoolTypes.includes(userProfile.schoolType)) return false
+    return true
+  })
 
-    // Percentage Check
-    if (s.minPercentage !== null && userProfile.percentage < s.minPercentage) {
-      eligible = false
-    }
+  // 4. Score each eligible scholarship synchronously (no AI calls yet)
+  const studentProfile = {
+    name: userProfile.name,
+    percentage: userProfile.percentage,
+    income: userProfile.income,
+    category: userProfile.category,
+    state: userProfile.state,
+    schoolType: userProfile.schoolType,
+  }
 
-    // Income Check
-    if (s.maxIncome !== null && userProfile.income > s.maxIncome) {
-      eligible = false
-    }
-
-    // Category Check
-    if (s.categories && s.categories.length > 0 && !s.categories.includes(userProfile.category)) {
-      eligible = false
-    }
-
-    // State Check
-    if (s.states && s.states.length > 0 && !s.states.includes(userProfile.state)) {
-      eligible = false
-    }
-
-    // School Type Check
-    if (s.schoolTypes && s.schoolTypes.length > 0 && !s.schoolTypes.includes(userProfile.schoolType)) {
-      eligible = false
-    }
-
-    if (!eligible) return null
-
-    // Calculate criteria-based match score
+  const scoredRaw = eligibleScholarships.map((s: any) => {
     let criteriaCount = 0
     let metCount = 0
 
-    if (s.minPercentage !== null) {
-      criteriaCount++
-      if (userProfile.percentage >= s.minPercentage) metCount++
-    }
-
-    if (s.maxIncome !== null) {
-      criteriaCount++
-      if (userProfile.income <= s.maxIncome) metCount++
-    }
-
-    if (s.categories && s.categories.length > 0) {
-      criteriaCount++
-      if (s.categories.includes(userProfile.category)) metCount++
-    }
-
-    if (s.states && s.states.length > 0) {
-      criteriaCount++
-      if (s.states.includes(userProfile.state)) metCount++
-    }
-
-    if (s.schoolTypes && s.schoolTypes.length > 0) {
-      criteriaCount++
-      if (s.schoolTypes.includes(userProfile.schoolType)) metCount++
-    }
+    if (s.minPercentage !== null) { criteriaCount++; if (userProfile.percentage >= s.minPercentage) metCount++ }
+    if (s.maxIncome !== null) { criteriaCount++; if (userProfile.income <= s.maxIncome) metCount++ }
+    if (s.categories && s.categories.length > 0) { criteriaCount++; if (s.categories.includes(userProfile.category)) metCount++ }
+    if (s.states && s.states.length > 0) { criteriaCount++; if (s.states.includes(userProfile.state)) metCount++ }
+    if (s.schoolTypes && s.schoolTypes.length > 0) { criteriaCount++; if (s.schoolTypes.includes(userProfile.schoolType)) metCount++ }
 
     const totalCriteria = criteriaCount || 1
     const matchedCriteria = metCount || 1
-
     let matchPercent = Math.round((matchedCriteria / totalCriteria) * 85)
 
-    // Academic bonus
     if (s.minPercentage !== null && userProfile.percentage > s.minPercentage) {
-      const excess = userProfile.percentage - s.minPercentage
-      matchPercent += Math.min(10, Math.round(excess * 0.8))
+      matchPercent += Math.min(10, Math.round((userProfile.percentage - s.minPercentage) * 0.8))
     }
-
-    // Income bonus
-    if (s.maxIncome !== null && userProfile.income < s.maxIncome * 0.5) {
-      matchPercent += 5
-    }
+    if (s.maxIncome !== null && userProfile.income < s.maxIncome * 0.5) matchPercent += 5
 
     const finalScore = Math.min(98, Math.max(60, matchPercent))
-
-    // Explanation reason
-    let reason = `Matches your marks (${userProfile.percentage}%) and annual family income (₹${userProfile.income.toLocaleString()}/yr).`
-    if (s.schoolTypes && s.schoolTypes.includes(userProfile.schoolType)) {
-      reason = `Highly optimized for your ${userProfile.schoolType} school background and percentage.`
-    } else if (userProfile.percentage >= 90) {
-      reason = `Outstanding academic score (${userProfile.percentage}%) gives you a high-probability merit match.`
-    }
-
-    const deadlineStr = s.deadline instanceof Date 
+    const deadlineStr = s.deadline instanceof Date
       ? s.deadline.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })
       : new Date(s.deadline).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })
 
-    return {
-      id: s.id,
-      name: s.name,
-      amount: s.amount,
-      deadline: deadlineStr,
-      tags: s.tags,
-      match: finalScore,
-      reason
-    }
-  }).filter(Boolean) as any[]
+    return { s, finalScore, deadlineStr }
+  })
 
-  // Sort by highest match score
-  matchedScholarships.sort((a, b) => b.match - a.match)
+  // 5. Sort by score descending so AI budget goes to the highest matches first
+  scoredRaw.sort((a, b) => b.finalScore - a.finalScore)
+
+  // 6. Attach explanations — Gemini for top AI_EXPLAINER_LIMIT, local for the rest
+  const matchedScholarships = await Promise.all(
+    scoredRaw.map(async ({ s, finalScore, deadlineStr }, index) => {
+      const scholarshipProfile = {
+        name: s.name,
+        minPercentage: s.minPercentage,
+        maxIncome: s.maxIncome,
+        categories: s.categories,
+        states: s.states,
+        schoolTypes: s.schoolTypes,
+      }
+
+      const reason = index < AI_EXPLAINER_LIMIT
+        ? await getAIExplanation(studentProfile, scholarshipProfile)
+        : generateLocalExplanation(studentProfile, scholarshipProfile)
+
+      return {
+        id: s.id,
+        name: s.name,
+        amount: s.amount,
+        deadline: deadlineStr,
+        tags: s.tags,
+        match: finalScore,
+        reason,
+      }
+    })
+  )
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-5xl">
