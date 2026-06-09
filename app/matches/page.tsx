@@ -22,7 +22,13 @@ interface MatchesPageProps {
 
 export default async function MatchesPage({ searchParams }: MatchesPageProps) {
   const params = await searchParams
-  const session = await getServerSession(authOptions)
+  
+  let session = null
+  try {
+    session = await getServerSession(authOptions)
+  } catch (err) {
+    console.warn("⚠️ NextAuth session decryption failed (usually due to missing/mismatched NEXTAUTH_SECRET). Falling back to guest mode.", err)
+  }
 
   // 1. Establish User Profile (from search params OR database OR fallback defaults)
   let userProfile = {
