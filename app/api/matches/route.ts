@@ -1,5 +1,10 @@
 import { NextResponse } from "next/server"
 import db from "@/lib/db"
+import { getAIExplanation, generateLocalExplanation } from "@/lib/ai-explainer"
+
+// Max number of matches that will get a live Gemini-generated explanation.
+// The rest fall back to the fast local sentence constructor.
+const AI_EXPLAINER_LIMIT = 3
 
 export async function POST(req: Request) {
   try {
@@ -43,7 +48,6 @@ export async function POST(req: Request) {
           )
       `
       
-      // Execute raw SQL query using Prisma's raw query runner
       scholarships = await db.$queryRawUnsafe(
         sqlQuery,
         userPct,
@@ -54,7 +58,6 @@ export async function POST(req: Request) {
       )
     } else {
       console.log("🔍 Querying in-memory mock database fallback...")
-      // In-memory mock database fallback query
       const allScholarships = await db.scholarship.findMany()
       
       scholarships = allScholarships.filter((s: any) => {
@@ -67,82 +70,80 @@ export async function POST(req: Request) {
       })
     }
 
-    // 2. Score each matching scholarship by the number of criteria they meet
+    // 2. Score each matching scholarship synchronously (no AI calls yet)
+    const studentProfile = {
+      name: body.name || "Guest User",
+      percentage: userPct,
+      income: userInc,
+      category,
+      state,
+      schoolType,
+    }
+
+    const scored = scholarships.map((s: any) => {
+      let criteriaCount = 0
+      let metCount = 0
+
+      if (s.minPercentage !== null) {
+        criteriaCount++
+        if (userPct >= s.minPercentage) metCount++
+      }
+      if (s.maxIncome !== null) {
+        criteriaCount++
+        if (userInc <= s.maxIncome) metCount++
+      }
+      if (s.categories && s.categories.length > 0) {
+        criteriaCount++
+        if (s.categories.includes(category)) metCount++
+      }
+      if (s.states && s.states.length > 0) {
+        criteriaCount++
+        if (s.states.includes(state)) metCount++
+      }
+      if (s.schoolTypes && s.schoolTypes.length > 0) {
+        criteriaCount++
+        if (s.schoolTypes.includes(schoolType)) metCount++
+      }
+
+      const totalCriteria = criteriaCount || 1
+      const matchedCriteria = metCount || 1
+      let matchPercent = Math.round((matchedCriteria / totalCriteria) * 85)
+
+      if (s.minPercentage !== null && userPct > s.minPercentage) {
+        const excess = userPct - s.minPercentage
+        matchPercent += Math.min(10, Math.round(excess * 0.8))
+      }
+      if (s.maxIncome !== null && userInc < s.maxIncome * 0.5) {
+        matchPercent += 5
+      }
+
+      const finalScore = Math.min(98, Math.max(60, matchPercent))
+
+      const deadlineStr = s.deadline instanceof Date 
+        ? s.deadline.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })
+        : new Date(s.deadline).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })
+
+      return { s, finalScore, matchedCriteria, totalCriteria, deadlineStr }
+    })
+
+    // 3. Sort by score descending so AI budget goes to the best matches
+    scored.sort((a, b) => b.finalScore - a.finalScore)
+
+    // 4. Attach explanations — Gemini for top N, local generator for the rest
     const scoredMatches = await Promise.all(
-      scholarships.map(async (s: any) => {
-        let criteriaCount = 0
-        let metCount = 0
-
-        // Criteria 1: Minimum Marks Percentage
-        if (s.minPercentage !== null) {
-          criteriaCount++
-          if (userPct >= s.minPercentage) {
-            metCount++
-          }
+      scored.map(async ({ s, finalScore, matchedCriteria, totalCriteria, deadlineStr }, index) => {
+        const scholarshipProfile = {
+          name: s.name,
+          minPercentage: s.minPercentage,
+          maxIncome: s.maxIncome,
+          categories: s.categories,
+          states: s.states,
+          schoolTypes: s.schoolTypes,
         }
 
-        // Criteria 2: Maximum Family Income
-        if (s.maxIncome !== null) {
-          criteriaCount++
-          if (userInc <= s.maxIncome) {
-            metCount++
-          }
-        }
-
-        // Criteria 3: Social Category Match
-        if (s.categories && s.categories.length > 0) {
-          criteriaCount++
-          if (s.categories.includes(category)) {
-            metCount++
-          }
-        }
-
-        // Criteria 4: State Domicile Match
-        if (s.states && s.states.length > 0) {
-          criteriaCount++
-          if (s.states.includes(state)) {
-            metCount++
-          }
-        }
-
-        // Criteria 5: School Type Match
-        if (s.schoolTypes && s.schoolTypes.length > 0) {
-          criteriaCount++
-          if (s.schoolTypes.includes(schoolType)) {
-            metCount++
-          }
-        }
-
-        // If a scholarship has no specific criteria (open to all), default base criteria count to 1
-        const totalCriteria = criteriaCount || 1
-        const matchedCriteria = metCount || 1
-
-        // Calculate base match score from 0-100% based on matching criteria
-        let matchPercent = Math.round((matchedCriteria / totalCriteria) * 85)
-
-        // Add a bonus based on how much the student exceeds the academic requirements
-        if (s.minPercentage !== null && userPct > s.minPercentage) {
-          const excess = userPct - s.minPercentage
-          matchPercent += Math.min(10, Math.round(excess * 0.8))
-        }
-
-        // Add a bonus if the student's family income is significantly lower than the maximum limit
-        if (s.maxIncome !== null && userInc < s.maxIncome * 0.5) {
-          matchPercent += 5
-        }
-
-        const finalScore = Math.min(98, Math.max(60, matchPercent))
-
-        // Get AI Explanation (either Claude API or local EWS/Merit fallback)
-        const reason = await getAIExplanation(
-          { name: body.name || "Guest User", percentage: userPct, income: userInc, category, state, schoolType },
-          { name: s.name, minPercentage: s.minPercentage, maxIncome: s.maxIncome, categories: s.categories, states: s.states, schoolTypes: s.schoolTypes }
-        )
-
-        // Format date for response
-        const deadlineStr = s.deadline instanceof Date 
-          ? s.deadline.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })
-          : new Date(s.deadline).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })
+        const reason = index < AI_EXPLAINER_LIMIT
+          ? await getAIExplanation(studentProfile, scholarshipProfile)
+          : generateLocalExplanation(studentProfile, scholarshipProfile)
 
         return {
           id: s.id,
@@ -153,13 +154,10 @@ export async function POST(req: Request) {
           match: finalScore,
           reason,
           matchedCriteria,
-          totalCriteria
+          totalCriteria,
         }
       })
     )
-
-    // 3. Sort by match score descending
-    scoredMatches.sort((a, b) => b.match - a.match)
 
     return NextResponse.json({ success: true, count: scoredMatches.length, matches: scoredMatches })
   } catch (error: any) {
