@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server"
 import db from "@/lib/db"
 
+export const dynamic = "force-dynamic"
+
 export async function GET() {
   try {
     const scholarships = await db.scholarship.findMany()
@@ -38,13 +40,24 @@ export async function GET() {
       const key = d.toLocaleDateString("en-IN", { month: "short", year: "2-digit" })
       monthMap[key] = (monthMap[key] || 0) + 1
     }
+    
+    const parseMonth = (m: string) => {
+      const parts = m.split(/[\s,'-]+/).filter(Boolean)
+      const months = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"]
+      if (parts.length >= 2) {
+        const monthIndex = months.indexOf(parts[0].toLowerCase())
+        let year = parseInt(parts[1], 10)
+        if (year < 100) year += 2000
+        if (monthIndex !== -1) {
+          return new Date(year, monthIndex, 1)
+        }
+      }
+      return new Date(0)
+    }
+
     const deadlineTimeline = Object.entries(monthMap)
       .map(([month, count]) => ({ month, count }))
-      .sort((a, b) => {
-        // sort by actual date value
-        const parseMonth = (m: string) => new Date(`1 ${m}`)
-        return parseMonth(a.month).getTime() - parseMonth(b.month).getTime()
-      })
+      .sort((a, b) => parseMonth(a.month).getTime() - parseMonth(b.month).getTime())
 
     // 4. Category eligibility breakdown
     const catMap: Record<string, number> = {}

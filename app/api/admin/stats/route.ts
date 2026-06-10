@@ -2,6 +2,8 @@ import { NextResponse } from "next/server"
 import db from "@/lib/db"
 import { scholarshipsData } from "@/lib/scholarships-data"
 
+export const dynamic = "force-dynamic"
+
 export async function GET() {
   try {
     const scholarships = await db.scholarship.findMany()
