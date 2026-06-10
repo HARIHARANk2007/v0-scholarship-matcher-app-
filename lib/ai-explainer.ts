@@ -1,3 +1,5 @@
+import { generateWithFallback } from "./gemini";
+
 export interface StudentProfile {
   name: string;
   percentage: number;
@@ -113,48 +115,12 @@ Scholarship:
 
 Start the explanation directly without introductory phrases like "Here is the explanation". Keep it extremely concise and direct, similar to: "You qualify because your 87% exceeds the 75% cutoff and you're from Tamil Nadu."`;
 
-    const modelName = "gemini-2.5-flash";
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
-
-    const response = await fetch(url, {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-      },
-      body: JSON.stringify({
-        contents: [
-          {
-            parts: [
-              {
-                text: prompt
-              }
-            ]
-          }
-        ],
-        generationConfig: {
-          maxOutputTokens: 150,
-          temperature: 0.2,
-          thinkingConfig: {
-            thinkingBudget: 0
-          }
-        }
-      }),
+    const result = await generateWithFallback(prompt, {
+      maxOutputTokens: 150,
+      temperature: 0.2
     });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Gemini API responded with status ${response.status}: ${errorText}`);
-    }
-
-    const data = await response.json();
-    if (
-      data.candidates &&
-      data.candidates[0] &&
-      data.candidates[0].content &&
-      data.candidates[0].content.parts[0] &&
-      data.candidates[0].content.parts[0].text
-    ) {
-      const result = data.candidates[0].content.parts[0].text.trim();
+    if (result) {
       // Store in cache for future requests
       explanationCache.set(cacheKey, result);
       return result;
