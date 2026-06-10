@@ -1,6 +1,3 @@
-import { PrismaClient } from "@prisma/client/default"
-import { PrismaPg } from "@prisma/adapter-pg"
-import pg from "pg"
 import { scholarshipsData } from "./scholarships-data"
 
 // ==========================================
@@ -12,9 +9,13 @@ const hasDbUrl = !!process.env.DATABASE_URL;
 let dbInstance: any;
 
 if (hasDbUrl) {
+  const pg = require("pg")
+  const { PrismaPg } = require("@prisma/adapter-pg")
+  const { PrismaClient } = require("@prisma/client")
+
   const globalForPrisma = globalThis as unknown as {
-    prisma: PrismaClient | undefined
-    pool: pg.Pool | undefined
+    prisma: any
+    pool: any
   }
 
   const pool = globalForPrisma.pool ?? new pg.Pool({
