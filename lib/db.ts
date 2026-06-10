@@ -64,6 +64,9 @@ if (hasDbUrl) {
         const { email, id } = args.where;
         return inMemoryUsers.find(u => (email && u.email === email) || (id && u.id === id)) || null;
       },
+      findMany: async (args?: any) => {
+        return inMemoryUsers;
+      },
       create: async (args: any) => {
         const newUser = {
           id: Math.random().toString(36).substring(7),
@@ -86,15 +89,44 @@ if (hasDbUrl) {
           return inMemoryUsers[userIndex];
         }
         throw new Error("User not found");
-      }
+      },
+      count: async () => inMemoryUsers.length,
     },
     scholarship: {
-      findMany: async (args: any) => {
+      findMany: async (args?: any) => {
         return inMemoryScholarships;
       },
       findUnique: async (args: any) => {
         return inMemoryScholarships.find(s => s.id === args.where.id) || null;
-      }
+      },
+      create: async (args: any) => {
+        const newScholarship = {
+          id: `s${Date.now()}`,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          ...args.data,
+        };
+        inMemoryScholarships.push(newScholarship);
+        return newScholarship;
+      },
+      update: async (args: any) => {
+        const idx = inMemoryScholarships.findIndex(s => s.id === args.where.id);
+        if (idx === -1) throw new Error("Scholarship not found");
+        inMemoryScholarships[idx] = {
+          ...inMemoryScholarships[idx],
+          ...args.data,
+          updatedAt: new Date(),
+        };
+        return inMemoryScholarships[idx];
+      },
+      delete: async (args: any) => {
+        const idx = inMemoryScholarships.findIndex(s => s.id === args.where.id);
+        if (idx === -1) throw new Error("Scholarship not found");
+        const deleted = inMemoryScholarships[idx];
+        inMemoryScholarships.splice(idx, 1);
+        return deleted;
+      },
+      count: async () => inMemoryScholarships.length,
     },
     application: {
       findMany: async (args: any) => {
