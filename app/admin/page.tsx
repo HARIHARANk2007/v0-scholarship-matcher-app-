@@ -7,6 +7,8 @@ import {
 } from "lucide-react"
 import db from "@/lib/db"
 
+export const dynamic = "force-dynamic"
+
 // ─── Live Stats computed server-side ─────────────────────────────────────────
 async function getStats() {
   const [scholarships, users] = await Promise.all([
@@ -91,7 +93,7 @@ export default async function AdminPage() {
           </div>
           <div className="text-right">
             <div className="text-xs text-slate-400">Last refreshed</div>
-            <div className="text-sm font-medium text-slate-600">
+            <div className="text-sm font-medium text-slate-600" suppressHydrationWarning>
               {new Date().toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })}
             </div>
           </div>
