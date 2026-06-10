@@ -152,7 +152,7 @@ export function ScholarshipsTable() {
                         {s.minPercentage && <div className="text-[11px] text-slate-400 mt-0.5">Min {s.minPercentage}%{s.maxIncome ? ` · ₹${(s.maxIncome / 100000).toFixed(1)}L income` : ""}</div>}
                       </td>
                       <td className="px-4 py-3 text-right">
-                        <span className="font-bold text-slate-800">₹{s.amount.toLocaleString()}</span>
+                        <span className="font-bold text-slate-800">₹{s.amount.toLocaleString("en-IN")}</span>
                       </td>
                       <td className="px-4 py-3 hidden md:table-cell">
                         <div className="flex flex-wrap gap-1">

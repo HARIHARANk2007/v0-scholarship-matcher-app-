@@ -111,7 +111,7 @@ export default function DashboardPage() {
                   </div>
                   <p className="text-xs text-slate-500 mb-3 line-clamp-2">{scholarship.reason}</p>
                   <div className="flex items-center justify-between text-xs">
-                    <span className="font-semibold text-slate-700">₹{scholarship.amount.toLocaleString()}</span>
+                    <span className="font-semibold text-slate-700">₹{scholarship.amount.toLocaleString("en-IN")}</span>
                     <ArrowRight className="h-3 w-3 text-slate-400 group-hover:text-blue-600 group-hover:translate-x-1 transition-transform" />
                   </div>
                 </CardContent>
