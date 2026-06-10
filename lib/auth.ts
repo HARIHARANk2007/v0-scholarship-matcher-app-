@@ -80,5 +80,5 @@ export const authOptions: NextAuthOptions = {
     strategy: "jwt",
   },
 
-  secret: process.env.NEXTAUTH_SECRET,
+  secret: process.env.NEXTAUTH_SECRET || "edubridge_secret_super_key_32_chars_long_constant",
 }
