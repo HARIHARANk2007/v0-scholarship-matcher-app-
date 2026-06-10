@@ -1,12 +1,12 @@
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Clock, ArrowRight, Filter, AlertCircle, RefreshCw } from "lucide-react"
+import { Filter, AlertCircle, RefreshCw } from "lucide-react"
 import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/lib/auth"
 import db from "@/lib/db"
 import { getAIExplanation, generateLocalExplanation } from "@/lib/ai-explainer"
+import { ScholarshipCard } from "@/components/scholarship-card"
 
 // Max number of matches that will get a live Gemini-generated explanation.
 const AI_EXPLAINER_LIMIT = 3
@@ -195,74 +195,18 @@ export default async function MatchesPage({ searchParams }: MatchesPageProps) {
       ) : (
         <div className="grid gap-6">
           {matchedScholarships.map((scholarship) => (
-            <Card
+            <ScholarshipCard
               key={scholarship.id}
-              className="bg-white border border-slate-200 shadow-sm hover:border-blue-400/50 hover:shadow-md transition-all group overflow-hidden"
-            >
-              <div className="flex flex-col md:flex-row">
-                {/* Match Score Indicator */}
-                <div className="w-full md:w-32 bg-slate-50/50 flex flex-col items-center justify-center p-6 border-b md:border-b-0 md:border-r border-slate-100 shrink-0">
-                  <div
-                    className={`text-3xl font-extrabold font-mono ${
-                      scholarship.match >= 90
-                        ? "text-emerald-600"
-                        : scholarship.match >= 80
-                          ? "text-blue-600"
-                          : "text-amber-600"
-                    }`}
-                  >
-                    {scholarship.match}%
-                  </div>
-                  <span className="text-[10px] text-slate-400 uppercase tracking-widest font-bold mt-1">Match</span>
-                </div>
-
-                {/* Content */}
-                <div className="flex-1 p-6">
-                  <div className="flex flex-col md:flex-row md:items-start justify-between gap-4 mb-4">
-                    <div>
-                      <div className="flex flex-wrap gap-1.5 mb-2">
-                        {scholarship.tags.map((tag: string, i: number) => (
-                          <Badge
-                            key={i}
-                            variant="secondary"
-                            className="bg-blue-50 text-blue-600 hover:bg-blue-100 border-none text-[10px] py-0.5 px-2 rounded-full font-medium"
-                          >
-                            {tag}
-                          </Badge>
-                        ))}
-                      </div>
-                      <h3 className="text-xl font-bold text-slate-800 group-hover:text-blue-600 transition-colors">
-                        {scholarship.name}
-                      </h3>
-                      <p className="text-slate-500 mt-1 text-sm">{scholarship.reason}</p>
-                    </div>
-                    <div className="text-left md:text-right shrink-0">
-                      <div className="text-2xl font-bold text-slate-800">₹{scholarship.amount.toLocaleString()}</div>
-                      <div className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">Grant Amount</div>
-                    </div>
-                  </div>
-
-                  <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t border-slate-100">
-                    <div className="flex items-center text-sm text-slate-500 w-full sm:w-auto">
-                      <Clock className="h-4 w-4 mr-1.5 text-red-500" />
-                      Deadline: <span className="text-slate-700 font-medium ml-1">{scholarship.deadline}</span>
-                    </div>
-                    <div className="flex gap-3 w-full sm:w-auto">
-                      <Link href="/application" className="w-full sm:w-auto">
-                        <Button variant="outline" className="w-full sm:w-auto bg-transparent border-slate-200 text-slate-600 hover:bg-slate-50">
-                          View Details
-                        </Button>
-                      </Link>
-                      <Link href="/application" className="w-full sm:w-auto">
-                        <Button className="w-full sm:w-auto gap-2 bg-blue-600 hover:bg-blue-700 text-white">
-                          Auto-Fill Application <ArrowRight className="h-4 w-4" />
-                        </Button>
-                      </Link>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </Card>
+              scholarship={scholarship}
+              profile={{
+                name: userProfile.name,
+                percentage: userProfile.percentage,
+                income: userProfile.income,
+                category: userProfile.category,
+                state: userProfile.state,
+                schoolType: userProfile.schoolType,
+              }}
+            />
           ))}
         </div>
       )}
