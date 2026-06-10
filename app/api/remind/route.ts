@@ -1,10 +1,15 @@
 import { NextResponse } from "next/server"
 import { Resend } from "resend"
 
-const resend = new Resend(process.env.RESEND_API_KEY)
+export const dynamic = "force-dynamic"
 
 export async function POST(req: Request) {
   try {
+    const apiKey = process.env.RESEND_API_KEY
+    if (!apiKey) {
+      throw new Error("Resend API key is not configured")
+    }
+    const resend = new Resend(apiKey)
     const { email, scholarshipName, deadline } = await req.json()
 
     if (!email || !scholarshipName || !deadline) {
