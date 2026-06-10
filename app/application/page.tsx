@@ -46,7 +46,7 @@ export default function ApplicationPage() {
               <div className="space-y-1">
                 <label className="text-xs text-muted-foreground">Annual Family Income</label>
                 <div className="p-2 bg-accent/30 rounded border border-border/50 font-medium">
-                  ₹{user.income.toLocaleString()}
+                  ₹{user.income.toLocaleString("en-IN")}
                 </div>
               </div>
             </div>
@@ -92,7 +92,7 @@ export default function ApplicationPage() {
             <div className="p-4 bg-accent/30 rounded border border-border/50 text-sm leading-relaxed text-muted-foreground">
               I am writing to express my strong interest in the VidyaSamarth Scholarship. Coming from a{" "}
               {ocrExtracted.schoolType.toLowerCase()} background with an annual family income of ₹
-              {user.income.toLocaleString()}, pursuing higher education in Computer Science is a significant financial
+              {user.income.toLocaleString("en-IN")}, pursuing higher education in Computer Science is a significant financial
               challenge. With my score of {ocrExtracted.percentage}% in Class 12, I have demonstrated my academic
               dedication. This scholarship will help reduce the financial burden on my family and allow me to focus on
               my studies.

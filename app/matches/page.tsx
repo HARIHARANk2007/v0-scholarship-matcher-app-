@@ -164,7 +164,7 @@ export default async function MatchesPage({ searchParams }: MatchesPageProps) {
         <div>
           <h1 className="text-3xl font-bold">Your Scholarship Matches</h1>
           <p className="text-muted-foreground mt-1">
-            Showing opportunities matching your confirmed profile: <span className="font-semibold text-slate-800">{userProfile.percentage}% Marks</span>, <span className="font-semibold text-slate-800">Income ₹{userProfile.income.toLocaleString()}/yr</span>, <span className="font-semibold text-slate-800">{userProfile.category}</span>.
+            Showing opportunities matching your confirmed profile: <span className="font-semibold text-slate-800">{userProfile.percentage}% Marks</span>, <span className="font-semibold text-slate-800">Income ₹{userProfile.income.toLocaleString("en-IN")}/yr</span>, <span className="font-semibold text-slate-800">{userProfile.category}</span>.
           </p>
         </div>
         <div className="flex gap-2">

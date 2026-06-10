@@ -77,7 +77,7 @@ export function ScholarshipCard({ scholarship, profile }: ScholarshipCardProps) 
               <p className="text-slate-500 mt-1 text-sm leading-relaxed">{scholarship.reason}</p>
             </div>
             <div className="text-left md:text-right shrink-0">
-              <div className="text-2xl font-bold text-slate-800">₹{scholarship.amount.toLocaleString()}</div>
+              <div className="text-2xl font-bold text-slate-800">₹{scholarship.amount.toLocaleString("en-IN")}</div>
               <div className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">Grant Amount</div>
             </div>
           </div>
