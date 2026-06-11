@@ -1,10 +1,57 @@
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { dummyData } from "@/lib/data"
 import { Download, CheckCircle2, Edit2 } from "lucide-react"
+import { getServerSession } from "next-auth/next"
+import { authOptions } from "@/lib/auth"
+import db from "@/lib/db"
 
-export default function ApplicationPage() {
-  const { user, ocrExtracted } = dummyData
+export const dynamic = "force-dynamic"
+
+export default async function ApplicationPage() {
+  let session = null
+  try {
+    session = await getServerSession(authOptions)
+  } catch (err) {
+    console.warn("⚠️ NextAuth session retrieval failed on application page.", err)
+  }
+
+  // 1. Establish User Profile
+  let userProfile = {
+    name: "Guest User",
+    class: "12",
+    percentage: 80,
+    income: 200000,
+    category: "General",
+    state: "Tamil Nadu",
+    schoolType: "Govt Aided"
+  }
+
+  let documents: string[] = ["Marksheet.pdf", "Income_Certificate.pdf"]
+
+  if (session?.user?.id) {
+    const dbUser = await db.user.findUnique({
+      where: { id: session.user.id }
+    })
+    if (dbUser) {
+      userProfile = {
+        name: dbUser.name || "Student",
+        class: dbUser.class || "12",
+        percentage: dbUser.percentage || 0,
+        income: dbUser.income || 0,
+        category: dbUser.category || "General",
+        state: dbUser.state || "",
+        schoolType: dbUser.schoolType || "",
+      }
+    }
+
+    // Fetch actual documents from the DB
+    const dbDocs = await db.document.findMany({
+      where: { userId: session.user.id }
+    })
+    if (dbDocs.length > 0) {
+      documents = dbDocs.map((d: any) => d.fileName)
+    }
+  }
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-3xl">
@@ -19,7 +66,7 @@ export default function ApplicationPage() {
         <CardHeader className="border-b border-border/50 bg-accent/20">
           <div className="flex justify-between items-center">
             <CardTitle>VidyaSamarth Scholarship Application</CardTitle>
-            <span className="text-xs font-mono text-muted-foreground">ID: #APP-2025-882</span>
+            <span className="text-xs font-mono text-muted-foreground">ID: #APP-2026-882</span>
           </div>
         </CardHeader>
         <CardContent className="p-8 space-y-8">
@@ -31,7 +78,7 @@ export default function ApplicationPage() {
             <div className="grid md:grid-cols-2 gap-6">
               <div className="space-y-1">
                 <label className="text-xs text-muted-foreground">Full Name</label>
-                <div className="p-2 bg-accent/30 rounded border border-border/50 font-medium">{user.name}</div>
+                <div className="p-2 bg-accent/30 rounded border border-border/50 font-medium">{userProfile.name}</div>
               </div>
               <div className="space-y-1">
                 <label className="text-xs text-muted-foreground">Date of Birth</label>
@@ -40,13 +87,13 @@ export default function ApplicationPage() {
               <div className="space-y-1">
                 <label className="text-xs text-muted-foreground">Category</label>
                 <div className="p-2 bg-accent/30 rounded border border-border/50 font-medium">
-                  {ocrExtracted.category}
+                  {userProfile.category}
                 </div>
               </div>
               <div className="space-y-1">
                 <label className="text-xs text-muted-foreground">Annual Family Income</label>
                 <div className="p-2 bg-accent/30 rounded border border-border/50 font-medium">
-                  ₹{user.income.toLocaleString("en-IN")}
+                  ₹{userProfile.income.toLocaleString("en-IN")}
                 </div>
               </div>
             </div>
@@ -61,19 +108,19 @@ export default function ApplicationPage() {
               <div className="space-y-1">
                 <label className="text-xs text-muted-foreground">Class/Grade</label>
                 <div className="p-2 bg-accent/30 rounded border border-border/50 font-medium">
-                  {ocrExtracted.class}th Standard
+                  {userProfile.class}th Standard
                 </div>
               </div>
               <div className="space-y-1">
                 <label className="text-xs text-muted-foreground">Overall Percentage</label>
                 <div className="p-2 bg-accent/30 rounded border border-border/50 font-medium">
-                  {ocrExtracted.percentage}%
+                  {userProfile.percentage}%
                 </div>
               </div>
               <div className="col-span-2 space-y-1">
                 <label className="text-xs text-muted-foreground">School Name & Type</label>
                 <div className="p-2 bg-accent/30 rounded border border-border/50 font-medium">
-                  Govt Model Senior Secondary School ({ocrExtracted.schoolType})
+                  Govt Model Senior Secondary School ({userProfile.schoolType || "Govt"})
                 </div>
               </div>
             </div>
@@ -91,9 +138,9 @@ export default function ApplicationPage() {
             </div>
             <div className="p-4 bg-accent/30 rounded border border-border/50 text-sm leading-relaxed text-muted-foreground">
               I am writing to express my strong interest in the VidyaSamarth Scholarship. Coming from a{" "}
-              {ocrExtracted.schoolType.toLowerCase()} background with an annual family income of ₹
-              {user.income.toLocaleString("en-IN")}, pursuing higher education in Computer Science is a significant financial
-              challenge. With my score of {ocrExtracted.percentage}% in Class 12, I have demonstrated my academic
+              {(userProfile.schoolType || "Govt").toLowerCase()} background with an annual family income of ₹
+              {userProfile.income.toLocaleString("en-IN")}, pursuing higher education is a significant financial
+              challenge. With my score of {userProfile.percentage}% in Class {userProfile.class}, I have demonstrated my academic
               dedication. This scholarship will help reduce the financial burden on my family and allow me to focus on
               my studies.
             </div>
@@ -104,8 +151,8 @@ export default function ApplicationPage() {
             <h3 className="text-sm font-semibold text-primary uppercase tracking-wider mb-4 flex items-center gap-2">
               <CheckCircle2 className="h-4 w-4" /> Attached Documents
             </h3>
-            <div className="flex gap-4">
-              {user.documents.map((doc, i) => (
+            <div className="flex flex-wrap gap-4">
+              {documents.map((doc, i) => (
                 <div
                   key={i}
                   className="flex items-center gap-2 p-2 px-3 bg-primary/10 text-primary rounded-lg text-sm border border-primary/20"
