@@ -1,6 +1,7 @@
+import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Download, CheckCircle2, Edit2 } from "lucide-react"
+import { Download, CheckCircle2, Edit2, AlertCircle } from "lucide-react"
 import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/lib/auth"
 import db from "@/lib/db"
@@ -61,6 +62,24 @@ export default async function ApplicationPage() {
           We've auto-filled this form using your uploaded documents. Please review before submitting.
         </p>
       </div>
+
+      {!session?.user && (
+        <div className="mb-6 p-4 rounded-xl bg-amber-50 text-amber-800 border border-amber-200 text-xs flex gap-3">
+          <AlertCircle className="h-5 w-5 shrink-0 text-amber-600 animate-pulse mt-0.5" />
+          <div className="flex-1">
+            <span className="font-semibold block mb-0.5 text-amber-900 text-sm">Guest Preview Mode</span>
+            You are currently viewing this page in guest mode. The application below is populated with sample details. <strong>Please log in or register to upload your actual documents, save application drafts, and submit to live scholarship programs!</strong>
+            <div className="mt-3 flex gap-2">
+              <Link href="/login">
+                <Button size="sm" className="h-7 text-xs bg-amber-600 hover:bg-amber-700 text-white font-medium px-3">Log In</Button>
+              </Link>
+              <Link href="/register">
+                <Button size="sm" variant="outline" className="h-7 text-xs border-amber-200 bg-white/50 text-amber-800 hover:bg-amber-100 font-medium px-3">Register</Button>
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
 
       <Card className="bg-card border-border/50 mb-8">
         <CardHeader className="border-b border-border/50 bg-accent/20">

@@ -11,7 +11,7 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json()
-    const { name, class: className, percentage, income, category, state, schoolType } = body
+    const { name, class: className, percentage, income, category, state, schoolType, fileName } = body
 
     const updatedUser = await db.user.update({
       where: { id: session.user.id },
@@ -25,6 +25,29 @@ export async function POST(req: Request) {
         schoolType,
       },
     })
+
+    // If fileName is provided, register a Document record for this user
+    if (fileName) {
+      const existingDocs = await db.document.findMany({
+        where: {
+          userId: session.user.id,
+          fileName: fileName,
+        },
+      })
+
+      if (existingDocs.length === 0) {
+        await db.document.create({
+          data: {
+            userId: session.user.id,
+            type: "MARKSHEET",
+            fileName: fileName,
+            fileUrl: "/placeholder.pdf", // Mock URL
+            fileSize: 102400, // Mock size 100KB
+            mimeType: fileName.endsWith(".pdf") ? "application/pdf" : "image/png",
+          },
+        })
+      }
+    }
 
     return NextResponse.json({ success: true, user: { id: updatedUser.id, name: updatedUser.name } })
   } catch (error: any) {

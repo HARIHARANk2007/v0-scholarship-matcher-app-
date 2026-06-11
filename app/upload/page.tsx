@@ -262,6 +262,7 @@ export default function UploadPage() {
       category,
       state,
       schoolType,
+      fileName: file?.name || "Marksheet.pdf",
     }
 
     // 1. Save to local storage for guest/immediate matches filtering
