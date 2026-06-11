@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server"
+import { getServerSession } from "next-auth/next"
+import { authOptions } from "@/lib/auth"
 import db from "@/lib/db"
 
 export const dynamic = "force-dynamic"
@@ -6,6 +8,11 @@ export const dynamic = "force-dynamic"
 // GET — all scholarships
 export async function GET() {
   try {
+    const session = await getServerSession(authOptions)
+    if (session?.user?.role !== "admin") {
+      return NextResponse.json({ error: "Unauthorized access" }, { status: 401 })
+    }
+
     const scholarships = await db.scholarship.findMany()
     return NextResponse.json({ scholarships })
   } catch (error: any) {
@@ -16,6 +23,11 @@ export async function GET() {
 // POST — create new scholarship
 export async function POST(req: Request) {
   try {
+    const session = await getServerSession(authOptions)
+    if (session?.user?.role !== "admin") {
+      return NextResponse.json({ error: "Unauthorized access" }, { status: 401 })
+    }
+
     const body = await req.json()
     const scholarship = await db.scholarship.create({
       data: {
@@ -41,6 +53,11 @@ export async function POST(req: Request) {
 // PUT — update existing scholarship
 export async function PUT(req: Request) {
   try {
+    const session = await getServerSession(authOptions)
+    if (session?.user?.role !== "admin") {
+      return NextResponse.json({ error: "Unauthorized access" }, { status: 401 })
+    }
+
     const body = await req.json()
     const { id, ...data } = body
     if (!id) return NextResponse.json({ error: "Missing id" }, { status: 400 })
@@ -70,6 +87,11 @@ export async function PUT(req: Request) {
 // DELETE — remove scholarship
 export async function DELETE(req: Request) {
   try {
+    const session = await getServerSession(authOptions)
+    if (session?.user?.role !== "admin") {
+      return NextResponse.json({ error: "Unauthorized access" }, { status: 401 })
+    }
+
     const { searchParams } = new URL(req.url)
     const id = searchParams.get("id")
     if (!id) return NextResponse.json({ error: "Missing id" }, { status: 400 })

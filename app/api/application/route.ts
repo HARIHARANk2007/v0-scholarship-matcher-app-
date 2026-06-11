@@ -10,7 +10,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const { scholarshipName } = await req.json()
+    const { scholarshipName, status } = await req.json()
 
     // Find a scholarship in the database to link this application to
     // We search for a seeded NSP scholarship, or fall back to any available scholarship
@@ -31,7 +31,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "No scholarships found to link application" }, { status: 404 })
     }
 
-    // Upsert Application table record (status = PENDING for draft)
+    // Upsert Application table record
     const application = await db.application.upsert({
       where: {
         userId_scholarshipId: {
@@ -40,13 +40,13 @@ export async function POST(req: Request) {
         }
       },
       update: {
-        status: "PENDING",
+        status: status || "PENDING",
         updatedAt: new Date()
       },
       create: {
         userId: session.user.id,
         scholarshipId: scholarship.id,
-        status: "PENDING"
+        status: status || "PENDING"
       }
     })
 

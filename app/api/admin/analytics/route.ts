@@ -1,10 +1,17 @@
 import { NextResponse } from "next/server"
+import { getServerSession } from "next-auth/next"
+import { authOptions } from "@/lib/auth"
 import db from "@/lib/db"
 
 export const dynamic = "force-dynamic"
 
 export async function GET() {
   try {
+    const session = await getServerSession(authOptions)
+    if (session?.user?.role !== "admin") {
+      return NextResponse.json({ error: "Unauthorized access" }, { status: 401 })
+    }
+
     const scholarships = await db.scholarship.findMany()
     const now = new Date()
 

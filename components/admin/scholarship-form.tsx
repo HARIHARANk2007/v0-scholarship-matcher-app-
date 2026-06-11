@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -44,7 +44,9 @@ export function ScholarshipForm({ open, onClose, initial, onSaved }: Props) {
   const [error, setError] = useState<string | null>(null)
 
   // Sync when initial changes (switching between add/edit)
-  useState(() => { setForm(initial || EMPTY) })
+  useEffect(() => {
+    setForm(initial || EMPTY)
+  }, [initial])
 
   const set = (key: keyof ScholarshipFormData, value: any) =>
     setForm(prev => ({ ...prev, [key]: value }))

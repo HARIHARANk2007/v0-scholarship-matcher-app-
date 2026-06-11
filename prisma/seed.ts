@@ -2,7 +2,10 @@ import { PrismaClient } from "@prisma/client/default"
 import { PrismaPg } from "@prisma/adapter-pg"
 import pg from "pg"
 import bcrypt from "bcryptjs"
+import dotenv from "dotenv"
 import { scholarshipsData } from "../lib/scholarships-data"
+
+dotenv.config()
 
 const pool = new pg.Pool({
   connectionString: process.env.DATABASE_URL,
@@ -35,9 +38,25 @@ async function main() {
       category: "OBC",
       state: "Tamil Nadu",
       schoolType: "Govt Aided",
+      role: "student",
     },
   })
   console.log("✅ Created user:", user.name)
+
+  // Create sample admin user with hashed password
+  const adminUser = await prisma.user.create({
+    data: {
+      name: "Admin User",
+      email: "admin@edubridge.com",
+      password: hashedPassword,
+      phone: "9999999999",
+      role: "admin",
+      category: "General",
+      state: "Tamil Nadu",
+      schoolType: "Govt",
+    },
+  })
+  console.log("✅ Created admin user:", adminUser.name)
 
   // Create scholarships from shared data
   const scholarships = await prisma.scholarship.createMany({
