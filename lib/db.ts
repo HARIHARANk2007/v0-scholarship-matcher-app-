@@ -137,6 +137,13 @@ if (hasDbUrl) {
         }
         return inMemoryApplications;
       },
+      count: async (args?: any) => {
+        const { userId } = args?.where || {};
+        if (userId) {
+          return inMemoryApplications.filter(a => a.userId === userId).length;
+        }
+        return inMemoryApplications.length;
+      },
       create: async (args: any) => {
         const newApp = {
           id: Math.random().toString(36).substring(7),
@@ -149,6 +156,20 @@ if (hasDbUrl) {
       }
     },
     document: {
+      findMany: async (args?: any) => {
+        const { userId } = args?.where || {};
+        if (userId) {
+          return inMemoryDocuments.filter(d => d.userId === userId);
+        }
+        return inMemoryDocuments;
+      },
+      count: async (args?: any) => {
+        const { userId } = args?.where || {};
+        if (userId) {
+          return inMemoryDocuments.filter(d => d.userId === userId).length;
+        }
+        return inMemoryDocuments.length;
+      },
       create: async (args: any) => {
         const newDoc = {
           id: Math.random().toString(36).substring(7),
