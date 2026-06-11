@@ -5,6 +5,7 @@ import { FileText, GraduationCap, TrendingUp, AlertCircle, ArrowRight, Clock } f
 import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/lib/auth"
 import db from "@/lib/db"
+import { DashboardDeadlines } from "@/components/dashboard-deadlines"
 
 export const dynamic = "force-dynamic"
 
@@ -65,7 +66,19 @@ export default async function DashboardPage() {
     : 0
 
   // 5. Get upcoming deadlines
+  let appliedScholarshipIds: string[] = []
+  if (session?.user?.id) {
+    const apps = await db.application.findMany({
+      where: {
+        userId: session.user.id,
+        status: { in: ["SUBMITTED", "APPROVED"] }
+      }
+    })
+    appliedScholarshipIds = apps.map((a: any) => a.scholarshipId)
+  }
+
   const upcomingDeadlines = eligibleScholarships
+    .filter((s: any) => !appliedScholarshipIds.includes(s.id))
     .map((s: any) => {
       const deadlineDate = new Date(s.deadline)
       const daysLeft = Math.ceil((deadlineDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24))
@@ -168,48 +181,7 @@ export default async function DashboardPage() {
             </Link>
           </div>
 
-          <div className="space-y-4">
-            {upcomingDeadlines.length === 0 ? (
-              <div className="p-8 text-center border border-dashed border-slate-200 rounded-xl bg-slate-50/50 text-slate-500 text-sm">
-                No upcoming deadlines for matching scholarships.
-              </div>
-            ) : (
-              upcomingDeadlines.map((item) => (
-                <div
-                  key={item.id}
-                  className="flex items-center justify-between p-5 rounded-xl border border-slate-200 bg-white hover:border-blue-200 hover:shadow-sm transition-all group"
-                >
-                  <div className="flex items-start gap-4">
-                    <div className="h-10 w-10 rounded-full bg-red-50 flex items-center justify-center text-red-500 shrink-0">
-                      <AlertCircle className="h-5 w-5" />
-                    </div>
-                    <div>
-                      <h3 className="font-semibold text-slate-900 group-hover:text-blue-600 transition-colors">
-                        {item.name}
-                      </h3>
-                      <p className="text-sm text-slate-500 flex items-center mt-1">
-                        <Clock className="h-3 w-3 mr-1" /> Deadline: {item.deadline}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <span className="inline-flex items-center rounded-full bg-red-50 px-3 py-1 text-xs font-medium text-red-600 ring-1 ring-inset ring-red-600/10">
-                      {item.daysLeft} days left
-                    </span>
-                    <Link href="/matches">
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="hidden group-hover:flex mt-2 h-8 ml-auto text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-                      >
-                        Apply Now <ArrowRight className="ml-1 h-3 w-3" />
-                      </Button>
-                    </Link>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
+          <DashboardDeadlines initialDeadlines={upcomingDeadlines} isLoggedIn={!!session?.user} />
         </div>
 
         {/* Recent Scholarships */}
