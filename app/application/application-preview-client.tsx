@@ -5,7 +5,7 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Textarea } from "@/components/ui/textarea"
-import { Download, CheckCircle2, Edit2, AlertCircle, Save } from "lucide-react"
+import { Download, CheckCircle2, Edit2, AlertCircle, Save, Sparkles, Loader2 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 
 interface UserProfile {
@@ -33,6 +33,8 @@ export function ApplicationPreviewClient({
   
   // Local state for SOP editing
   const [isEditingSop, setIsEditingSop] = useState(false)
+  const [isGenerating, setIsGenerating] = useState(false)
+  const [loadingDraft, setLoadingDraft] = useState(false)
   const [sopText, setSopText] = useState(
     `I am writing to express my strong interest in the VidyaSamarth Scholarship. Coming from a ${(
       userProfile.schoolType || "Govt"
@@ -43,20 +45,96 @@ export function ApplicationPreviewClient({
     }% in Class ${userProfile.class}, I have demonstrated my academic dedication. This scholarship will help reduce the financial burden on my family and allow me to focus on my studies.`
   )
 
-  const handleSaveDraft = () => {
-    // Save draft to localStorage as mock persistence
-    const draft = {
-      userProfile,
-      sop: sopText,
-      documents: initialDocuments,
-      savedAt: new Date().toISOString(),
+  const handleGenerateSop = async () => {
+    setIsGenerating(true)
+    try {
+      const res = await fetch("/api/essay", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          bullets: [
+            `I come from a ${(userProfile.schoolType || "Govt").toLowerCase()} school with an annual family income of ₹${userProfile.income.toLocaleString("en-IN")}/yr.`,
+            `I scored a high marks percentage of ${userProfile.percentage}% in Class ${userProfile.class}th standard.`,
+            `This scholarship will reduce the financial burden on my family and enable me to focus entirely on my higher education goals.`,
+          ],
+          scholarshipName: "VidyaSamarth Scholarship",
+          studentName: userProfile.name,
+          percentage: userProfile.percentage,
+          state: userProfile.state,
+          category: userProfile.category,
+        }),
+      })
+
+      const data = await res.json()
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to generate SOP")
+      }
+
+      if (data.essay) {
+        setSopText(data.essay)
+        toast({
+          title: "SOP Generated!",
+          description: "Google Gemini has drafted a personalized Statement of Purpose based on your profile details.",
+        })
+      }
+    } catch (err: any) {
+      console.error(err)
+      toast({
+        title: "AI Generation Failed",
+        description: err.message || "Failed to call the AI Essay API.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsGenerating(false)
     }
-    localStorage.setItem("application_draft", JSON.stringify(draft))
-    
-    toast({
-      title: "Draft Saved!",
-      description: "Your application draft has been saved successfully.",
-    })
+  }
+
+  const handleSaveDraft = async () => {
+    setLoadingDraft(true)
+    try {
+      // 1. Save draft to localStorage as local persistence
+      const draft = {
+        userProfile,
+        sop: sopText,
+        documents: initialDocuments,
+        savedAt: new Date().toISOString(),
+      }
+      localStorage.setItem("application_draft", JSON.stringify(draft))
+
+      // 2. If logged in, save/upsert an Application record in the database
+      if (isLoggedIn) {
+        const res = await fetch("/api/application", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            scholarshipName: "VidyaSamarth Scholarship",
+          }),
+        })
+
+        if (!res.ok) {
+          const errData = await res.json()
+          throw new Error(errData.error || "Failed to sync application record")
+        }
+      }
+      
+      toast({
+        title: "Draft Saved!",
+        description: isLoggedIn
+          ? "Your application draft has been synced with the database."
+          : "Your application draft has been saved locally on this browser.",
+      })
+    } catch (err: any) {
+      console.error(err)
+      toast({
+        title: "Saved Locally",
+        description: "Draft saved in browser, but failed to sync database: " + err.message,
+        variant: "destructive",
+      })
+    } finally {
+      setLoadingDraft(false)
+    }
   }
 
   const handleDownloadPdf = () => {
@@ -194,14 +272,30 @@ export function ApplicationPreviewClient({
                 <CheckCircle2 className="h-4 w-4" /> Statement of Purpose
               </h3>
               {isEditingSop ? (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setIsEditingSop(false)}
-                  className="h-6 text-xs text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 flex items-center gap-1"
-                >
-                  <Save className="h-3 w-3" /> Done
-                </Button>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleGenerateSop}
+                    disabled={isGenerating}
+                    className="h-7 text-xs text-purple-600 border-purple-200 hover:bg-purple-50 hover:text-purple-700 flex items-center gap-1 bg-white font-medium px-2.5"
+                  >
+                    {isGenerating ? (
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                    ) : (
+                      <Sparkles className="h-3 w-3 text-purple-500" />
+                    )}
+                    {isGenerating ? "Generating..." : "AI Generate"}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setIsEditingSop(false)}
+                    className="h-7 text-xs text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 flex items-center gap-1 font-medium"
+                  >
+                    <Save className="h-3.5 w-3.5" /> Done
+                  </Button>
+                </div>
               ) : (
                 <Button
                   variant="ghost"
@@ -253,8 +347,9 @@ export function ApplicationPreviewClient({
       </Card>
 
       <div className="flex flex-col sm:flex-row gap-4 justify-end no-print">
-        <Button variant="outline" size="lg" onClick={handleSaveDraft} className="w-full sm:w-auto">
-          Save as Draft
+        <Button variant="outline" size="lg" onClick={handleSaveDraft} disabled={loadingDraft} className="w-full sm:w-auto gap-2">
+          {loadingDraft && <Loader2 className="h-4 w-4 animate-spin" />}
+          {loadingDraft ? "Saving..." : "Save as Draft"}
         </Button>
         <Button size="lg" onClick={handleDownloadPdf} className="gap-2 w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white">
           <Download className="h-4 w-4" /> Download PDF Application
