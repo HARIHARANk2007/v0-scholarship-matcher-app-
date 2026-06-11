@@ -13,6 +13,7 @@ export interface ParsedMarksheet {
   class: string;
   subjects: ParsedSubject[];
   percentage: number;
+  isFallbackUsed?: boolean;
 }
 
 const COMMON_SUBJECTS = [
@@ -156,6 +157,8 @@ export function parseMarksheetText(text: string): ParsedMarksheet {
     percentage = Math.round((totalMarks / (subjects.length * 100)) * 1000) / 10;
   }
 
+  const isFallbackUsed = subjects.length === 0;
+
   // Clean name
   if (name) {
     name = name.replace(/\b(name|candidate|student|roll|no|class|grade)\b/gi, "").trim();
@@ -174,5 +177,6 @@ export function parseMarksheetText(text: string): ParsedMarksheet {
       { name: "English", marks: 88 }
     ],
     percentage: percentage || 82.8,
+    isFallbackUsed,
   };
 }

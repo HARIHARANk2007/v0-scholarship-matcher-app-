@@ -50,6 +50,7 @@ export default function UploadPage() {
   const [className, setClassName] = useState("12")
   const [percentage, setPercentage] = useState<number>(80)
   const [subjects, setSubjects] = useState<{ name: string; marks: number }[]>([])
+  const [isFallbackUsed, setIsFallbackUsed] = useState(false)
   
   // Extra eligibility criteria for confirmation
   const [income, setIncome] = useState<number>(200000)
@@ -84,6 +85,7 @@ export default function UploadPage() {
     setFile(selectedFile)
     setIsProcessing(true)
     setIsAnalyzed(false)
+    setIsFallbackUsed(false)
     setErrorMsg(null)
     setProgress(10)
     setStatusMessage("Scanning document...")
@@ -175,6 +177,10 @@ export default function UploadPage() {
         throw new Error("Unsupported file type. Please upload a PDF or Image.")
       }
 
+      console.log("--- RAW EXTRACTED OCR TEXT ---")
+      console.log(rawText || "(No text extracted)")
+      console.log("------------------------------")
+
       setProgress(90)
       setStatusMessage("Analyzing grades & percentages...")
       
@@ -185,6 +191,7 @@ export default function UploadPage() {
       setClassName(parsedData.class)
       setPercentage(parsedData.percentage)
       setSubjects(parsedData.subjects)
+      setIsFallbackUsed(!!parsedData.isFallbackUsed)
       
       setProgress(100)
       setIsProcessing(false)
@@ -204,6 +211,7 @@ export default function UploadPage() {
         { name: "Chemistry", marks: 80 },
         { name: "English", marks: 80 }
       ])
+      setIsFallbackUsed(true)
       setIsAnalyzed(true)
     }
   }
@@ -379,12 +387,27 @@ export default function UploadPage() {
             <Card className="border border-border/40 bg-white shadow-lg rounded-2xl overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-300">
               <div className="px-6 py-4 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
                 <h2 className="text-lg font-bold text-slate-800">Confirm Marksheet Details</h2>
-                <div className="flex items-center gap-1.5 text-xs text-emerald-700 font-semibold bg-emerald-50 px-2.5 py-1 rounded-full">
-                  <Check className="h-3.5 w-3.5" /> Extracted Successfully
-                </div>
+                {isFallbackUsed ? (
+                  <div className="flex items-center gap-1.5 text-xs text-amber-700 font-semibold bg-amber-50 px-2.5 py-1 rounded-full border border-amber-200">
+                    <AlertTriangle className="h-3.5 w-3.5 text-amber-600" /> Manual Review Required
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-1.5 text-xs text-emerald-700 font-semibold bg-emerald-50 px-2.5 py-1 rounded-full">
+                    <Check className="h-3.5 w-3.5" /> Extracted Successfully
+                  </div>
+                )}
               </div>
 
               <CardContent className="p-6 space-y-6">
+                {isFallbackUsed && (
+                  <div className="p-4 rounded-xl bg-amber-50 text-amber-800 border border-amber-200 text-xs flex gap-2">
+                    <AlertTriangle className="h-5 w-5 shrink-0 text-amber-600 animate-pulse" />
+                    <div>
+                      <span className="font-semibold block mb-0.5 text-amber-900">⚠️ Scanned Data Notice</span>
+                      We couldn't automatically read your name or grades from this marksheet image/PDF. We have pre-filled this form with example values — <strong>please review and edit the fields below to match your actual marksheet grades!</strong>
+                    </div>
+                  </div>
+                )}
                 {/* Basic Details */}
                 <div className="grid md:grid-cols-2 gap-4">
                   <div className="space-y-1.5">
