@@ -26,6 +26,7 @@ model User {
   category  String?  // OBC, SC, ST, General
   state     String?
   schoolType String? // Govt, Private, Govt Aided
+  role      String   @default("student") // "student" or "admin"
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

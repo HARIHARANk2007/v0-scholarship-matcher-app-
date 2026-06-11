@@ -1,9 +1,13 @@
 import { Suspense } from "react"
+import { redirect } from "next/navigation"
+import { getServerSession } from "next-auth/next"
+import { authOptions } from "@/lib/auth"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { ScholarshipsTable } from "@/components/admin/scholarships-table"
 import { AnalyticsCharts } from "@/components/admin/analytics-charts"
+import { ApplicationsTable } from "@/components/admin/applications-table"
 import {
-  Users, IndianRupee, BookOpen, TrendingUp, Clock, Star, Loader2,
+  Users, IndianRupee, BookOpen, TrendingUp, Clock, Star, Loader2, FileText
 } from "lucide-react"
 import db from "@/lib/db"
 
@@ -11,9 +15,10 @@ export const dynamic = "force-dynamic"
 
 // ─── Live Stats computed server-side ─────────────────────────────────────────
 async function getStats() {
-  const [scholarships, users] = await Promise.all([
+  const [scholarships, users, applications] = await Promise.all([
     db.scholarship.findMany(),
     db.user.findMany(),
+    db.application.findMany(),
   ])
 
   const totalAmount = scholarships.reduce((s: number, sc: any) => s + (sc.amount || 0), 0)
@@ -36,12 +41,13 @@ async function getStats() {
 
   return {
     totalScholarships: scholarships.length,
-    totalStudents: users.length,
+    totalStudents: users.filter((u: any) => u.role !== "admin").length,
     totalAmount,
     avgAmount,
     highValue,
     expiringSoon,
     topTag,
+    totalApplications: applications.length,
   }
 }
 
@@ -70,6 +76,12 @@ function StatCard({
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 export default async function AdminPage() {
+  // 1. Role-based middleware authorization check
+  const session = await getServerSession(authOptions)
+  if (session?.user?.role !== "admin") {
+    redirect("/login?error=UnauthorizedAdmin")
+  }
+
   const stats = await getStats()
 
   const formatAmount = (n: number) =>
@@ -123,10 +135,10 @@ export default async function AdminPage() {
             accent="bg-violet-600"
           />
           <StatCard
-            title="Expiring This Month"
-            value={stats.expiringSoon}
-            sub={`${stats.highValue} scholarships above ₹50K`}
-            icon={Clock}
+            title="Submitted Applications"
+            value={stats.totalApplications}
+            sub="Student applications"
+            icon={FileText}
             accent="bg-amber-500"
           />
         </div>
@@ -175,6 +187,22 @@ export default async function AdminPage() {
             </div>
           }>
             <AnalyticsCharts />
+          </Suspense>
+        </section>
+
+        {/* Applications Management Section */}
+        <section>
+          <div className="mb-5">
+            <h2 className="text-xl font-bold text-slate-800">Student Applications</h2>
+            <p className="text-sm text-slate-400 mt-0.5">Review and manage student scholarship submissions. Approve or reject applications.</p>
+          </div>
+          <Suspense fallback={
+            <div className="flex items-center gap-3 py-12 text-slate-400">
+              <Loader2 className="h-5 w-5 animate-spin" />
+              <span className="text-sm">Loading applications…</span>
+            </div>
+          }>
+            <ApplicationsTable />
           </Suspense>
         </section>
 

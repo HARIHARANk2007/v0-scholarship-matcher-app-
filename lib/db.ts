@@ -47,6 +47,21 @@ if (hasDbUrl) {
       category: "OBC",
       state: "Tamil Nadu",
       schoolType: "Govt Aided",
+      role: "student",
+    },
+    {
+      id: "admin-user-id",
+      name: "Admin User",
+      email: "admin@edubridge.com",
+      password: "$2b$10$q4PA0FsH0J9NGJGdGa0sCuVC5kHB0YfsbiD6IpibX1DcrG7oeOdhe", // bcrypt hash for 'password123'
+      phone: "9999999999",
+      class: "",
+      percentage: 0,
+      income: 0,
+      category: "General",
+      state: "Tamil Nadu",
+      schoolType: "Govt",
+      role: "admin",
     }
   ];
 
@@ -130,12 +145,24 @@ if (hasDbUrl) {
       count: async () => inMemoryScholarships.length,
     },
     application: {
-      findMany: async (args: any) => {
-        const { userId } = args.where || {};
-        if (userId) {
-          return inMemoryApplications.filter(a => a.userId === userId);
+      findMany: async (args?: any) => {
+        const { userId } = args?.where || {};
+        let list = userId
+          ? inMemoryApplications.filter(a => a.userId === userId)
+          : inMemoryApplications;
+
+        if (args?.include) {
+          list = list.map(a => {
+            const user = inMemoryUsers.find(u => u.id === a.userId);
+            const scholarship = inMemoryScholarships.find(s => s.id === a.scholarshipId);
+            return {
+              ...a,
+              user,
+              scholarship,
+            };
+          });
         }
-        return inMemoryApplications;
+        return list;
       },
       count: async (args?: any) => {
         const { userId } = args?.where || {};
@@ -153,6 +180,40 @@ if (hasDbUrl) {
         };
         inMemoryApplications.push(newApp);
         return newApp;
+      },
+      update: async (args: any) => {
+        const { id } = args.where;
+        const idx = inMemoryApplications.findIndex(a => a.id === id);
+        if (idx === -1) throw new Error("Application not found");
+        inMemoryApplications[idx] = {
+          ...inMemoryApplications[idx],
+          ...args.data,
+          updatedAt: new Date(),
+        };
+        return inMemoryApplications[idx];
+      },
+      upsert: async (args: any) => {
+        const { userId, scholarshipId } = args.where.userId_scholarshipId;
+        const idx = inMemoryApplications.findIndex(a => a.userId === userId && a.scholarshipId === scholarshipId);
+        if (idx !== -1) {
+          inMemoryApplications[idx] = {
+            ...inMemoryApplications[idx],
+            ...args.update,
+            updatedAt: new Date(),
+          };
+          return inMemoryApplications[idx];
+        } else {
+          const newApp = {
+            id: Math.random().toString(36).substring(7),
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            userId,
+            scholarshipId,
+            ...args.create,
+          };
+          inMemoryApplications.push(newApp);
+          return newApp;
+        }
       }
     },
     document: {
