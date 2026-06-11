@@ -6,6 +6,7 @@ import { Navbar } from "@/components/navbar"
 import { Sidebar } from "@/components/sidebar"
 import { Topbar } from "@/components/topbar"
 import { AuthProvider } from "@/components/auth-provider"
+import { Toaster } from "@/components/ui/toaster"
 
 export function ClientLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
@@ -19,6 +20,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
           {pathname !== "/login" && pathname !== "/register" && <Navbar />}
           <main className="flex-1 flex flex-col">{children}</main>
         </div>
+        <Toaster />
       </AuthProvider>
     )
   }
@@ -34,6 +36,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
           </main>
         </div>
       </div>
+      <Toaster />
     </AuthProvider>
   )
 }
